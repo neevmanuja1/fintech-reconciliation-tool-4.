@@ -92,6 +92,39 @@ if payment_file and bank_file:
 
             results["Status"] = results.apply(status, axis=1)
             
+            # Assign priority to discrepancies
+            results["Priority"] = "None"
+
+            results.loc[
+                results["Status"].isin([
+                    "Missing from Bank",
+                    "Missing from Payments"
+                ]),
+                "Priority"
+            ] = "High"
+
+            mismatch = results["Status"] == "Amount Mismatch"
+
+            difference = (
+                results["Amount_Payment"] -
+                results["Amount_Bank"]
+            ).abs()
+
+            results.loc[
+                mismatch & (difference >= 100),
+                "Priority"
+            ] = "High"
+
+            results.loc[
+                mismatch & (difference >= 25) & (difference < 100),
+                "Priority"
+            ] = "Medium"
+
+            results.loc[
+                mismatch & (difference < 25),
+                "Priority"
+            ] = "Low"
+
 
 
 
