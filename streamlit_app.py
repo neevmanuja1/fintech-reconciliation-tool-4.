@@ -92,30 +92,7 @@ if payment_file and bank_file:
 
             results["Status"] = results.apply(status, axis=1)
             
-def calculate_priority(row):
-    if row["Status"] == "Matched":
-        return "None"
 
-    if row["Status"] in [
-        "Missing from Bank",
-        "Missing from Payments"
-    ]:
-        return "High"
-
-    difference = abs(
-        row["Amount_Payment"] - row["Amount_Bank"]
-    )
-
-    if difference >= 100:
-        return "High"
-    elif difference >= 25:
-        return "Medium"
-    else:
-        return "Low"
-
-results["Priority"] = results.apply(
-    calculate_priority, axis=1
-)
 
 
             exceptions = results[
