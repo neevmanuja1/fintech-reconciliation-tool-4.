@@ -179,13 +179,20 @@ if payment_file and bank_file:
                     placeholder="e.g. TX003"
                 )
 
+           
             with st.form("priority_filter_form"):
                 selected_priority = st.selectbox(
                     "Filter transactions by priority",
                     ["All", "High", "Medium", "Low"]
                 )
 
+                search_id = st.text_input(
+                    "Search by Transaction ID",
+                    placeholder="e.g. TX003"
+                )
+
                 st.form_submit_button("Apply Filter")
+
 
 
 
