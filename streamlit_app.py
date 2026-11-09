@@ -33,13 +33,26 @@ with col2:
         key="bank"
     )
 
+# Reset previous results when uploaded files change
 if payment_file and bank_file:
+    file_signature = (
+        payment_file.getvalue(),
+        bank_file.getvalue()
+    )
+
+    if st.session_state.get("file_signature") != file_signature:
+        st.session_state["file_signature"] = file_signature
+        st.session_state["show_results"] = False
+
     try:
         payments = pd.read_csv(
-            payment_file, dtype={"Transaction_ID": str}
+            payment_file,
+            dtype={"Transaction_ID": str}
         )
+
         bank = pd.read_csv(
-            bank_file, dtype={"Transaction_ID": str}
+            bank_file,
+            dtype={"Transaction_ID": str}
         )
 
         required = {"Transaction_ID", "Amount"}
@@ -64,18 +77,25 @@ if payment_file and bank_file:
                 st.stop()
 
             data["Amount"] = pd.to_numeric(
-                data["Amount"], errors="coerce"
+                data["Amount"],
+                errors="coerce"
             )
 
             if data["Amount"].isna().any():
-                st.error(f"{name}: Invalid or missing amounts.")
+                st.error(
+                    f"{name}: Invalid or missing amounts."
+                )
                 st.stop()
 
-
-        if st.button("Run Reconciliation", type="primary"):
+        if st.button(
+            "Run Reconciliation",
+            type="primary"
+        ):
             st.session_state["show_results"] = True
 
         if st.session_state.get("show_results", False):
+
+            # Merge payment and bank records
             results = payments.merge(
                 bank,
                 on="Transaction_ID",
@@ -85,17 +105,27 @@ if payment_file and bank_file:
                 validate="one_to_one"
             )
 
+            # Identify transaction discrepancies
             def status(row):
                 if row["_merge"] == "left_only":
                     return "Missing from Bank"
+
                 if row["_merge"] == "right_only":
                     return "Missing from Payments"
-                if row["Amount_Payment"] != row["Amount_Bank"]:
+
+                if (
+                    row["Amount_Payment"]
+                    != row["Amount_Bank"]
+                ):
                     return "Amount Mismatch"
+
                 return "Matched"
 
-            results["Status"] = results.apply(status, axis=1)
-            
+            results["Status"] = results.apply(
+                status,
+                axis=1
+            )
+
             # Assign priority to discrepancies
             results["Priority"] = "None"
 
@@ -107,11 +137,13 @@ if payment_file and bank_file:
                 "Priority"
             ] = "High"
 
-            mismatch = results["Status"] == "Amount Mismatch"
+            mismatch = (
+                results["Status"] == "Amount Mismatch"
+            )
 
             difference = (
-                results["Amount_Payment"] -
-                results["Amount_Bank"]
+                results["Amount_Payment"]
+                - results["Amount_Bank"]
             ).abs()
 
             results.loc[
@@ -120,7 +152,9 @@ if payment_file and bank_file:
             ] = "High"
 
             results.loc[
-                mismatch & (difference >= 25) & (difference < 100),
+                mismatch
+                & (difference >= 25)
+                & (difference < 100),
                 "Priority"
             ] = "Medium"
 
@@ -128,59 +162,70 @@ if payment_file and bank_file:
                 mismatch & (difference < 25),
                 "Priority"
             ] = "Low"
-            
-            # Recommend actions for each transaction
+
+            # Recommend corrective actions
             action_map = {
                 "Matched": "No action required",
-                "Missing from Bank": "Verify bank settlement and check for processing delays",
-                "Missing from Payments": "Investigate unrecorded payment in payment system",
-                "Amount Mismatch": "Compare payment and bank amounts and investigate difference"
+                "Missing from Bank":
+                    "Verify bank settlement and check for processing delays",
+                "Missing from Payments":
+                    "Investigate unrecorded payment in payment system",
+                "Amount Mismatch":
+                    "Compare payment and bank amounts and investigate difference"
             }
 
             results["Recommended_Action"] = (
                 results["Status"].map(action_map)
             )
 
-
-
-
-
+            # Identify transactions requiring review
             exceptions = results[
                 results["Status"] != "Matched"
-            ]
+            ].copy()
 
             st.success("Reconciliation completed!")
 
+            # Dashboard metrics
             c1, c2, c3 = st.columns(3)
 
-            c1.metric("Total Transactions", len(results))
+            c1.metric(
+                "Total Transactions",
+                len(results)
+            )
+
             c2.metric(
                 "Matched",
-                (results["Status"] == "Matched").sum()
+                int(
+                    (results["Status"] == "Matched").sum()
+                )
             )
-            c3.metric("Discrepancies", len(exceptions))
 
+            c3.metric(
+                "Discrepancies",
+                len(exceptions)
+            )
+
+            # Transaction analysis chart
             st.subheader("Transaction Analysis")
-            st.bar_chart(results["Status"].value_counts())
 
-          
-            st.subheader("Transactions Requiring Review")
+            st.bar_chart(
+                results["Status"].value_counts()
+            )
+
+            # Review section
+            st.subheader(
+                "Transactions Requiring Review"
+            )
 
             priority_order = {
                 "High": 0,
                 "Medium": 1,
                 "Low": 2
             }
-            
-            # Filter transactions by priority
-           
-                search_id = st.text_input(
-                    "Search by Transaction ID",
-                    placeholder="e.g. TX003"
-                )
 
-           
+            # Priority filter and transaction search
             with st.form("priority_filter_form"):
+
                 selected_priority = st.selectbox(
                     "Filter transactions by priority",
                     ["All", "High", "Medium", "Low"]
@@ -193,16 +238,14 @@ if payment_file and bank_file:
 
                 st.form_submit_button("Apply Filter")
 
-
-
-
-
+            # Apply filters
             sorted_exceptions = exceptions.copy()
-            
+
             if search_id.strip():
                 sorted_exceptions = sorted_exceptions[
-                    sorted_exceptions["Transaction_ID"]
-                    .str.contains(
+                    sorted_exceptions[
+                        "Transaction_ID"
+                    ].str.contains(
                         search_id.strip(),
                         case=False,
                         regex=False,
@@ -210,41 +253,61 @@ if payment_file and bank_file:
                     )
                 ]
 
-
             if selected_priority != "All":
                 sorted_exceptions = sorted_exceptions[
-                    sorted_exceptions["Priority"] == selected_priority
+                    sorted_exceptions["Priority"]
+                    == selected_priority
                 ]
 
+            # Sort transactions by priority
             sorted_exceptions["Priority_Order"] = (
-                sorted_exceptions["Priority"].map(priority_order)
+                sorted_exceptions["Priority"].map(
+                    priority_order
+                )
             )
 
-            sorted_exceptions = sorted_exceptions.sort_values(
-                "Priority_Order"
+            sorted_exceptions = (
+                sorted_exceptions.sort_values(
+                    "Priority_Order"
+                )
             )
 
+            # Display filtered transactions
             st.dataframe(
                 sorted_exceptions.drop(
-                    columns=["_merge", "Priority_Order"]
+                    columns=[
+                        "_merge",
+                        "Priority_Order"
+                    ]
                 ),
                 use_container_width=True,
                 hide_index=True
             )
 
+            if sorted_exceptions.empty:
+                st.info(
+                    "No transactions match your filters."
+                )
 
+            # Generate Excel report
             output = BytesIO()
 
             with pd.ExcelWriter(
-                output, engine="openpyxl"
+                output,
+                engine="openpyxl"
             ) as writer:
-                results.drop(columns=["_merge"]).to_excel(
+
+                results.drop(
+                    columns=["_merge"]
+                ).to_excel(
                     writer,
                     sheet_name="All Transactions",
                     index=False
                 )
 
-                exceptions.drop(columns=["_merge"]).to_excel(
+                exceptions.drop(
+                    columns=["_merge"]
+                ).to_excel(
                     writer,
                     sheet_name="Discrepancies",
                     index=False
@@ -258,7 +321,12 @@ if payment_file and bank_file:
                     ],
                     "Value": [
                         len(results),
-                        (results["Status"] == "Matched").sum(),
+                        int(
+                            (
+                                results["Status"]
+                                == "Matched"
+                            ).sum()
+                        ),
                         len(exceptions)
                     ]
                 })
@@ -280,7 +348,10 @@ if payment_file and bank_file:
             )
 
     except Exception as e:
-        st.error(f"Unable to process files: {e}")
+        st.error(
+            f"Unable to process files: {e}"
+        )
 
 else:
+    st.session_state["show_results"] = False
     st.write("Upload both CSV files to begin.")
