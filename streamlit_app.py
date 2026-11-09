@@ -124,6 +124,19 @@ if payment_file and bank_file:
                 mismatch & (difference < 25),
                 "Priority"
             ] = "Low"
+            
+            # Recommend actions for each transaction
+            action_map = {
+                "Matched": "No action required",
+                "Missing from Bank": "Verify bank settlement and check for processing delays",
+                "Missing from Payments": "Investigate unrecorded payment in payment system",
+                "Amount Mismatch": "Compare payment and bank amounts and investigate difference"
+            }
+
+            results["Recommended_Action"] = (
+                results["Status"].map(action_map)
+            )
+
 
 
 
