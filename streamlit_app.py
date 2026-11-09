@@ -71,7 +71,11 @@ if payment_file and bank_file:
                 st.error(f"{name}: Invalid or missing amounts.")
                 st.stop()
 
+
         if st.button("Run Reconciliation", type="primary"):
+            st.session_state["show_results"] = True
+
+        if st.session_state.get("show_results", False):
             results = payments.merge(
                 bank,
                 on="Transaction_ID",
