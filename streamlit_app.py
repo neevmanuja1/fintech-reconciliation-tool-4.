@@ -146,11 +146,33 @@ if payment_file and bank_file:
             st.subheader("Transaction Analysis")
             st.bar_chart(results["Status"].value_counts())
 
+          
             st.subheader("Transactions Requiring Review")
-            st.dataframe(
-                exceptions.drop(columns=["_merge"]),
-                use_container_width=True
+
+            priority_order = {
+                "High": 0,
+                "Medium": 1,
+                "Low": 2
+            }
+
+            sorted_exceptions = exceptions.copy()
+
+            sorted_exceptions["Priority_Order"] = (
+                sorted_exceptions["Priority"].map(priority_order)
             )
+
+            sorted_exceptions = sorted_exceptions.sort_values(
+                "Priority_Order"
+            )
+
+            st.dataframe(
+                sorted_exceptions.drop(
+                    columns=["_merge", "Priority_Order"]
+                ),
+                use_container_width=True,
+                hide_index=True
+            )
+
 
             output = BytesIO()
 
