@@ -167,8 +167,21 @@ if payment_file and bank_file:
                 "Medium": 1,
                 "Low": 2
             }
+            
+            # Filter transactions by priority
+            selected_priority = st.selectbox(
+                "Filter transactions by priority",
+                ["All", "High", "Medium", "Low"]
+            )
+
+
 
             sorted_exceptions = exceptions.copy()
+
+            if selected_priority != "All":
+                sorted_exceptions = sorted_exceptions[
+                    sorted_exceptions["Priority"] == selected_priority
+                ]
 
             sorted_exceptions["Priority_Order"] = (
                 sorted_exceptions["Priority"].map(priority_order)
