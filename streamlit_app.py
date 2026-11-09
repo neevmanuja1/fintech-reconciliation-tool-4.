@@ -1,106 +1,96 @@
-                        detail1.write(
-                            f"**Transaction:** {transaction_id}"
-                        )
 
-                        detail2.write(
-                            f"**Status:** {row['Status']}"
-                        )
+import streamlit as st
+import pandas as pd
+from io import BytesIO
+import hashlib
 
-                        detail3.write(
-                            f"**Priority:** {row['Priority']}"
-                        )
+st.set_page_config(
+    page_title="Fintech Reconciliation",
+    page_icon="💳",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-                        st.markdown("#### Discrepancy Analysis")
+# --------------------------------------------------
+# PROFESSIONAL DASHBOARD STYLING
+# --------------------------------------------------
 
-                        st.write(row["AI_Explanation"])
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1450px;
+    }
 
-                        st.markdown("#### Recommended Action")
+    [data-testid="stMetric"] {
+        background: #f5f8fc;
+        border: 1px solid #e1e8f0;
+        border-radius: 12px;
+        padding: 18px;
+    }
 
-                        st.info(row["Recommended_Action"])
+    [data-testid="stMetricLabel"] {
+        color: #64748b;
+        font-weight: 600;
+    }
 
-                st.caption(
-                    "Explanations identify possible causes, "
-                    "not confirmed diagnoses."
-                )
+    [data-testid="stMetricValue"] {
+        color: #0f172a;
+        font-weight: 700;
+    }
 
-            if page == "📁 Reports":
-                # ------------------------------------------
-                # EXCEL REPORT
-                # ------------------------------------------
+    .dashboard-header {
+        padding: 20px 0 15px 0;
+    }
 
-                st.divider()
+    .dashboard-subtitle {
+        color: #64748b;
+        font-size: 16px;
+    }
 
-                st.subheader("Export Reports")
+    .section-description {
+        color: #64748b;
+        font-size: 14px;
+    }
 
-                st.caption(
-                    "Download reconciliation results, "
-                    "discrepancies, and summary metrics."
-                )
+    .status-banner {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        padding: 12px 18px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
 
-                output = BytesIO()
+    div.stButton > button[kind="primary"] {
+        background-color: #2563eb;
+        border-color: #2563eb;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-                with pd.ExcelWriter(
-                    output,
-                    engine="openpyxl"
-                ) as writer:
 
-                    results.drop(
-                        columns=["_merge"]
-                    ).to_excel(
-                        writer,
-                        sheet_name="All Transactions",
-                        index=False
-                    )
+# --------------------------------------------------
+# APPLICATION HEADER
+# --------------------------------------------------
 
-                    exceptions.drop(
-                        columns=["_merge"]
-                    ).to_excel(
-                        writer,
-                        sheet_name="Discrepancies",
-                        index=False
-                    )
+st.markdown("""
+<div class="dashboard-header">
+    <h1>💳 Fintech Reconciliation</h1>
+    <p class="dashboard-subtitle">
+        Transaction monitoring, discrepancy detection,
+        and financial reconciliation intelligence.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-                    summary = pd.DataFrame({
-                        "Metric": [
-                            "Total Transactions",
-                            "Matched",
-                            "Discrepancies",
-                            "Match Rate (%)"
-                        ],
-                        "Value": [
-                            total,
-                            matched_count,
-                            discrepancy_count,
-                            round(match_rate, 2)
-                        ]
-                    })
 
-                    summary.to_excel(
-                        writer,
-                        sheet_name="Summary",
-                        index=False
-                    )
+# --------------------------------------------------
+# SIDEBAR
+# --------------------------------------------------
 
-                st.download_button(
-                    "⬇ Download Reconciliation Report",
-                    data=output.getvalue(),
-                    file_name="Fintech_Reconciliation_Report.xlsx",
-                    mime=(
-                        "application/vnd.openxmlformats-officedocument."
-                        "spreadsheetml.sheet"
-                    ),
-                    use_container_width=True
-                )
-
-    except Exception as e:
-        st.error(
-            f"Unable to process files: {e}"
-        )
-
-else:
-    st.session_state["show_results"] = False
-
-    st.info(
-        "Upload both payment and bank CSV files "
-        "to begin reconciliation."
-    )
+with st.sidebar:
+    st.title("💳 Reconciliation")
