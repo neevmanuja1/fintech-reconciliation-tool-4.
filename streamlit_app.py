@@ -173,10 +173,15 @@ if payment_file and bank_file:
             }
             
             # Filter transactions by priority
-            selected_priority = st.selectbox(
-                "Filter transactions by priority",
-                ["All", "High", "Medium", "Low"]
-            )
+           
+            with st.form("priority_filter_form"):
+                selected_priority = st.selectbox(
+                    "Filter transactions by priority",
+                    ["All", "High", "Medium", "Low"]
+                )
+
+                st.form_submit_button("Apply Filter")
+
 
 
 
