@@ -99,9 +99,11 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Workspace")
-    st.write("📊 Overview")
-    st.write("🔎 Transaction Review")
-    st.write("📁 Reports")
+ page = st.radio(
+    "Navigation",
+    ["📊 Overview", "🔎 Transaction Review", "📁 Reports"],
+    label_visibility="collapsed"
+)
 
     st.divider()
 
