@@ -7,35 +7,151 @@ import hashlib
 st.set_page_config(
     page_title="Fintech Reconciliation",
     page_icon="💳",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.title("💳 Fintech Reconciliation Platform")
-st.write(
-    "Upload payment and bank records to identify "
-    "transaction discrepancies automatically."
-)
+# --------------------------------------------------
+# PROFESSIONAL DASHBOARD STYLING
+# --------------------------------------------------
 
-st.info("Prototype: Use fictional or synthetic data only.")
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1450px;
+    }
+
+    [data-testid="stMetric"] {
+        background: #f5f8fc;
+        border: 1px solid #e1e8f0;
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .dashboard-header {
+        padding: 20px 0 15px 0;
+    }
+
+    .dashboard-subtitle {
+        color: #64748b;
+        font-size: 16px;
+    }
+
+    .section-description {
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .status-banner {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        padding: 12px 18px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background-color: #2563eb;
+        border-color: #2563eb;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# --------------------------------------------------
+# APPLICATION HEADER
+# --------------------------------------------------
+
+st.markdown("""
+<div class="dashboard-header">
+    <h1>💳 Fintech Reconciliation</h1>
+    <p class="dashboard-subtitle">
+        Transaction monitoring, discrepancy detection,
+        and financial reconciliation intelligence.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+
+# --------------------------------------------------
+# SIDEBAR
+# --------------------------------------------------
+
+with st.sidebar:
+    st.title("💳 Reconciliation")
+    st.caption("Financial Operations Platform")
+
+    st.divider()
+
+    st.subheader("Workspace")
+    st.write("📊 Overview")
+    st.write("🔎 Transaction Review")
+    st.write("📁 Reports")
+
+    st.divider()
+
+    st.subheader("System Information")
+    st.write("Engine: Rule-based reconciliation")
+    st.write("Risk classification: Enabled")
+    st.write("Discrepancy explanations: Enabled")
+
+    st.divider()
+
+    st.info(
+        "Prototype environment. "
+        "Upload synthetic or fictional data only."
+    )
+
+
+# --------------------------------------------------
+# FILE UPLOAD
+# --------------------------------------------------
+
+st.subheader("Data Sources")
+
+st.caption(
+    "Upload payment processor records and bank statements "
+    "to begin reconciliation."
+)
 
 col1, col2 = st.columns(2)
 
 with col1:
     payment_file = st.file_uploader(
-        "Upload Payment Records (CSV)",
+        "Payment Records",
         type=["csv"],
         key="payments"
     )
 
 with col2:
     bank_file = st.file_uploader(
-        "Upload Bank Records (CSV)",
+        "Bank Records",
         type=["csv"],
         key="bank"
     )
 
-# Reset previous results when uploaded files change
+
+# --------------------------------------------------
+# RECONCILIATION ENGINE
+# --------------------------------------------------
+
 if payment_file and bank_file:
+
     file_signature = (
         hashlib.sha256(payment_file.getvalue()).hexdigest(),
         hashlib.sha256(bank_file.getvalue()).hexdigest()
@@ -62,6 +178,7 @@ if payment_file and bank_file:
             ("Payments", payments),
             ("Bank", bank)
         ]:
+
             if not required.issubset(data.columns):
                 st.error(
                     f"{name}: CSV must contain "
@@ -70,11 +187,15 @@ if payment_file and bank_file:
                 st.stop()
 
             if data["Transaction_ID"].isna().any():
-                st.error(f"{name}: Missing transaction IDs.")
+                st.error(
+                    f"{name}: Missing transaction IDs."
+                )
                 st.stop()
 
             if data["Transaction_ID"].duplicated().any():
-                st.error(f"{name}: Duplicate transaction IDs.")
+                st.error(
+                    f"{name}: Duplicate transaction IDs."
+                )
                 st.stop()
 
             data["Amount"] = pd.to_numeric(
@@ -90,13 +211,13 @@ if payment_file and bank_file:
 
         if st.button(
             "Run Reconciliation",
-            type="primary"
+            type="primary",
+            use_container_width=True
         ):
             st.session_state["show_results"] = True
 
         if st.session_state.get("show_results", False):
 
-            # Merge payment and bank records
             results = payments.merge(
                 bank,
                 on="Transaction_ID",
@@ -106,8 +227,12 @@ if payment_file and bank_file:
                 validate="one_to_one"
             )
 
-            # Identify transaction discrepancies
+            # ------------------------------------------
+            # TRANSACTION STATUS
+            # ------------------------------------------
+
             def status(row):
+
                 if row["_merge"] == "left_only":
                     return "Missing from Bank"
 
@@ -127,7 +252,10 @@ if payment_file and bank_file:
                 axis=1
             )
 
-            # Assign priority to discrepancies
+            # ------------------------------------------
+            # RISK PRIORITY
+            # ------------------------------------------
+
             results["Priority"] = "None"
 
             results.loc[
@@ -164,13 +292,20 @@ if payment_file and bank_file:
                 "Priority"
             ] = "Low"
 
-            # Recommend corrective actions
+            # ------------------------------------------
+            # RECOMMENDED ACTIONS
+            # ------------------------------------------
+
             action_map = {
-                "Matched": "No action required",
+                "Matched":
+                    "No action required",
+
                 "Missing from Bank":
                     "Verify bank settlement and check for processing delays",
+
                 "Missing from Payments":
                     "Investigate unrecorded payment in payment system",
+
                 "Amount Mismatch":
                     "Compare payment and bank amounts and investigate difference"
             }
@@ -179,41 +314,41 @@ if payment_file and bank_file:
                 results["Status"].map(action_map)
             )
 
-            # AI-style discrepancy explanation engine
-            # Rule-based explanations, no external AI API required
+            # ------------------------------------------
+            # EXPLANATION ENGINE
+            # ------------------------------------------
+
             def explain_discrepancy(row):
+
                 transaction_status = row["Status"]
 
                 if transaction_status == "Matched":
                     return (
                         "Transaction reconciled successfully. "
-                        "The payment and bank records agree. "
-                        "No further investigation is required."
+                        "Payment and bank records agree."
                     )
 
                 if transaction_status == "Missing from Bank":
                     return (
-                        "This transaction exists in the payment "
+                        "This payment exists in the payment "
                         "system but has no corresponding bank "
-                        "record. Possible explanations include "
-                        "delayed bank settlement, a failed "
-                        "transfer, or an omitted bank entry. "
-                        "Verify the settlement status and "
-                        "review the bank statement."
+                        "record. Possible causes include delayed "
+                        "settlement, failed transfers, or missing "
+                        "bank entries. Verify settlement status."
                     )
 
                 if transaction_status == "Missing from Payments":
                     return (
                         "This transaction appears in the bank "
                         "records but is absent from the payment "
-                        "system. Possible explanations include "
-                        "an unrecorded payment, a manual bank "
-                        "transfer, or a data synchronization "
-                        "issue. Investigate the transaction "
-                        "source and payment system logs."
+                        "system. Possible causes include manual "
+                        "transfers, unrecorded payments, or "
+                        "synchronization issues. Investigate "
+                        "the transaction source."
                     )
 
                 if transaction_status == "Amount Mismatch":
+
                     payment_amount = row["Amount_Payment"]
                     bank_amount = row["Amount_Bank"]
 
@@ -235,57 +370,120 @@ if payment_file and bank_file:
                         f"This creates a {severity} "
                         f"discrepancy of "
                         f"{amount_difference:.2f}. "
-                        "Possible explanations include "
-                        "processing fees, partial settlements, "
-                        "or incorrect transaction entries. "
-                        "Compare the original payment record "
-                        "with the bank settlement report."
+                        "Possible causes include processing "
+                        "fees, partial settlements, or "
+                        "incorrect transaction entries. "
+                        "Review the original payment and "
+                        "bank settlement records."
                     )
 
-                return "Further investigation is required."
+                return "Further investigation required."
 
             results["AI_Explanation"] = results.apply(
                 explain_discrepancy,
                 axis=1
             )
 
-            # Identify transactions requiring review
             exceptions = results[
                 results["Status"] != "Matched"
             ].copy()
 
-            st.success("Reconciliation completed!")
+            # ------------------------------------------
+            # DASHBOARD OVERVIEW
+            # ------------------------------------------
 
-            # Dashboard metrics
-            c1, c2, c3 = st.columns(3)
+            st.divider()
+
+            st.markdown("""
+            <div class="status-banner">
+                ✓ Reconciliation completed successfully.
+                Results are ready for review.
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.subheader("Reconciliation Overview")
+
+            total = len(results)
+
+            matched_count = int(
+                (results["Status"] == "Matched").sum()
+            )
+
+            discrepancy_count = len(exceptions)
+
+            match_rate = (
+                (matched_count / total) * 100
+                if total > 0 else 0
+            )
+
+            c1, c2, c3, c4 = st.columns(4)
 
             c1.metric(
                 "Total Transactions",
-                len(results)
+                f"{total:,}"
             )
 
             c2.metric(
                 "Matched",
-                int(
-                    (results["Status"] == "Matched").sum()
-                )
+                f"{matched_count:,}"
             )
 
             c3.metric(
                 "Discrepancies",
-                len(exceptions)
+                f"{discrepancy_count:,}"
             )
 
-            # Transaction analysis chart
-            st.subheader("Transaction Analysis")
-
-            st.bar_chart(
-                results["Status"].value_counts()
+            c4.metric(
+                "Match Rate",
+                f"{match_rate:.1f}%"
             )
 
-            # Review section
-            st.subheader(
-                "Transactions Requiring Review"
+            # ------------------------------------------
+            # ANALYTICS
+            # ------------------------------------------
+
+            st.divider()
+
+            st.subheader("Transaction Analytics")
+
+            chart_col1, chart_col2 = st.columns(2)
+
+            with chart_col1:
+
+                st.markdown("**Transaction Status Breakdown**")
+
+                status_counts = (
+                    results["Status"].value_counts()
+                )
+
+                st.bar_chart(status_counts)
+
+            with chart_col2:
+
+                st.markdown("**Risk Priority Breakdown**")
+
+                priority_counts = (
+                    exceptions["Priority"]
+                    .value_counts()
+                    .reindex(
+                        ["High", "Medium", "Low"],
+                        fill_value=0
+                    )
+                )
+
+                st.bar_chart(priority_counts)
+
+            # ------------------------------------------
+            # TRANSACTION REVIEW
+            # ------------------------------------------
+
+            st.divider()
+
+            st.subheader("Transaction Review")
+
+            st.caption(
+                "Search, filter, and investigate "
+                "transactions requiring attention."
             )
 
             priority_order = {
@@ -294,25 +492,31 @@ if payment_file and bank_file:
                 "Low": 2
             }
 
-            # Priority filter and transaction search
             with st.form("priority_filter_form"):
 
-                selected_priority = st.selectbox(
-                    "Filter transactions by priority",
-                    ["All", "High", "Medium", "Low"]
+                filter_col1, filter_col2 = st.columns(2)
+
+                with filter_col1:
+                    selected_priority = st.selectbox(
+                        "Risk Priority",
+                        ["All", "High", "Medium", "Low"]
+                    )
+
+                with filter_col2:
+                    search_id = st.text_input(
+                        "Search Transaction ID",
+                        placeholder="e.g. TX003"
+                    )
+
+                st.form_submit_button(
+                    "Apply Filters",
+                    use_container_width=True
                 )
 
-                search_id = st.text_input(
-                    "Search by Transaction ID",
-                    placeholder="e.g. TX003"
-                )
-
-                st.form_submit_button("Apply Filter")
-
-            # Apply filters
             sorted_exceptions = exceptions.copy()
 
             if search_id.strip():
+
                 sorted_exceptions = sorted_exceptions[
                     sorted_exceptions[
                         "Transaction_ID"
@@ -325,12 +529,12 @@ if payment_file and bank_file:
                 ]
 
             if selected_priority != "All":
+
                 sorted_exceptions = sorted_exceptions[
                     sorted_exceptions["Priority"]
                     == selected_priority
                 ]
 
-            # Sort transactions by priority
             sorted_exceptions["Priority_Order"] = (
                 sorted_exceptions["Priority"].map(
                     priority_order
@@ -343,14 +547,22 @@ if payment_file and bank_file:
                 )
             )
 
-            # Display filtered transactions
+            st.caption(
+                f"Showing {len(sorted_exceptions)} "
+                f"of {len(exceptions)} discrepancies"
+            )
+
+            display_columns = [
+                "Transaction_ID",
+                "Amount_Payment",
+                "Amount_Bank",
+                "Status",
+                "Priority",
+                "Recommended_Action"
+            ]
+
             st.dataframe(
-                sorted_exceptions.drop(
-                    columns=[
-                        "_merge",
-                        "Priority_Order"
-                    ]
-                ),
+                sorted_exceptions[display_columns],
                 use_container_width=True,
                 hide_index=True
             )
@@ -360,47 +572,69 @@ if payment_file and bank_file:
                     "No transactions match your filters."
                 )
 
-            # Detailed discrepancy explanations
-            st.subheader("Discrepancy Explanations")
+            # ------------------------------------------
+            # INVESTIGATION PANELS
+            # ------------------------------------------
+
+            st.divider()
+
+            st.subheader("Investigation Center")
 
             st.caption(
-                "Automatically generated rule-based "
-                "explanations. Possible causes are "
-                "hypotheses, not confirmed findings."
+                "Detailed rule-based explanations "
+                "and recommended corrective actions."
             )
 
-            if not sorted_exceptions.empty:
+            for _, row in sorted_exceptions.iterrows():
 
-                for _, row in sorted_exceptions.iterrows():
+                transaction_id = row["Transaction_ID"]
 
-                    transaction_id = row["Transaction_ID"]
-                    transaction_priority = row["Priority"]
+                with st.expander(
+                    f"🔎 {transaction_id} | "
+                    f"{row['Status']} | "
+                    f"{row['Priority']} Priority"
+                ):
 
-                    with st.expander(
-                        f"{transaction_id} | "
-                        f"{row['Status']} | "
-                        f"Priority: {transaction_priority}"
-                    ):
+                    detail1, detail2, detail3 = st.columns(3)
 
-                        st.write("**Transaction ID:**", transaction_id)
+                    detail1.write(
+                        f"**Transaction:** {transaction_id}"
+                    )
 
-                        st.write(
-                            "**Status:**",
-                            row["Status"]
-                        )
+                    detail2.write(
+                        f"**Status:** {row['Status']}"
+                    )
 
-                        st.write(
-                            "**Priority:**",
-                            transaction_priority
-                        )
+                    detail3.write(
+                        f"**Priority:** {row['Priority']}"
+                    )
 
-                        st.write("**Explanation:**")
-                        st.write(row["AI_Explanation"])
+                    st.markdown("#### Discrepancy Analysis")
 
-                        st.write("**Recommended Action:**")
-                        st.write(row["Recommended_Action"])
+                    st.write(row["AI_Explanation"])
 
-            # Generate Excel report
+                    st.markdown("#### Recommended Action")
+
+                    st.info(row["Recommended_Action"])
+
+            st.caption(
+                "Explanations identify possible causes, "
+                "not confirmed diagnoses."
+            )
+
+            # ------------------------------------------
+            # EXCEL REPORT
+            # ------------------------------------------
+
+            st.divider()
+
+            st.subheader("Export Reports")
+
+            st.caption(
+                "Download reconciliation results, "
+                "discrepancies, and summary metrics."
+            )
+
             output = BytesIO()
 
             with pd.ExcelWriter(
@@ -428,17 +662,14 @@ if payment_file and bank_file:
                     "Metric": [
                         "Total Transactions",
                         "Matched",
-                        "Discrepancies"
+                        "Discrepancies",
+                        "Match Rate (%)"
                     ],
                     "Value": [
-                        len(results),
-                        int(
-                            (
-                                results["Status"]
-                                == "Matched"
-                            ).sum()
-                        ),
-                        len(exceptions)
+                        total,
+                        matched_count,
+                        discrepancy_count,
+                        round(match_rate, 2)
                     ]
                 })
 
@@ -449,13 +680,14 @@ if payment_file and bank_file:
                 )
 
             st.download_button(
-                "Download Excel Report",
+                "⬇ Download Reconciliation Report",
                 data=output.getvalue(),
                 file_name="Fintech_Reconciliation_Report.xlsx",
                 mime=(
                     "application/vnd.openxmlformats-officedocument."
                     "spreadsheetml.sheet"
-                )
+                ),
+                use_container_width=True
             )
 
     except Exception as e:
@@ -465,4 +697,8 @@ if payment_file and bank_file:
 
 else:
     st.session_state["show_results"] = False
-    st.write("Upload both CSV files to begin.")
+
+    st.info(
+        "Upload both payment and bank CSV files "
+        "to begin reconciliation."
+    )
