@@ -1,43 +1,153 @@
+# Fintech Reconciliation Platform
 
-# Fintech Transaction Reconciliation Platform
+### Automated Transaction Reconciliation & Financial Operations Dashboard
 
-A web-based financial reconciliation prototype developed
-by two Business & Artificial Intelligence students at
-ESADE Business School, Barcelona.
+A Python-based fintech application designed to automate transaction reconciliation between payment processor records and bank statements.
 
-## The Problem
-Fintech companies process large volumes of transactions.
-Comparing payment records against bank records manually
-can be time-consuming and prone to errors.
+The platform identifies financial discrepancies, classifies operational risk, supports investigation workflows, and generates downloadable reconciliation reports.
 
-## Our Solution
-We developed a Python-based reconciliation tool that
-automatically compares transaction records and flags
-discrepancies for investigation.
+**Live Application:** https://fintech-reconciliation-tool-4-pebkv8sastcy4tz48w59u6.streamlit.app
+
+## Overview
+
+Financial reconciliation is an essential process for payment companies, banks, and financial operations teams.
+
+Manually comparing payment records against bank statements can be time-consuming and prone to human error.
+
+This project demonstrates how a rule-based reconciliation engine can automate transaction matching, identify exceptions, and support financial operations workflows through an interactive dashboard.
 
 ## Key Features
-- Automated transaction matching
-- Detection of missing transactions
-- Identification of amount mismatches
-- Duplicate transaction ID validation
-- Interactive reconciliation dashboard
-- Downloadable Excel reports
 
-## Technology
-Python | Pandas | Streamlit | OpenPyXL
+### 1. Automated Transaction Reconciliation
+- Upload payment processor and bank transaction records as CSV files.
+- Match transactions using unique transaction identifiers.
+- Identify successful matches and discrepancies.
+- Calculate reconciliation rates automatically.
 
-## Live Demo
-https://fintech-reconciliation-tool-4-pebkv8sastcy4tz48w59u6.streamlit.app
+### 2. Financial Precision
+- Uses Python's Decimal module and integer-cent calculations.
+- Avoids floating-point comparison errors during reconciliation.
+- Validates financial amounts to a maximum of two decimal places.
+- Rejects invalid financial inputs.
 
-## Project Status
-Working prototype tested with synthetic financial data.
+### 3. Discrepancy Detection
+Automatically identifies:
+- Matched transactions
+- Missing bank records
+- Missing payment records
+- Amount mismatches
 
-## Future Development
-- AI-assisted discrepancy explanations
-- Automated exception prioritization
-- Support for additional financial data formats
-- Advanced reconciliation analytics
+### 4. Risk Classification
+Discrepancies are classified using predefined rules:
 
-## Team
-Two first-year Business & Artificial Intelligence
-students at ESADE Business School.
+| Priority | Criteria |
+|---|---|
+| High | Missing transactions or amount differences of €100 or more |
+| Medium | Amount differences from €25 to €99.99 |
+| Low | Amount differences below €25 |
+
+### 5. Investigation Management
+- Review discrepancies individually.
+- Access rule-based explanations of possible causes.
+- View recommended investigation actions.
+- Track cases as Open, Under Investigation, or Resolved.
+- Record investigation notes.
+
+Investigation progress is stored in Streamlit session state and is not permanently saved.
+
+### 6. Interactive Dashboard
+- Transaction reconciliation metrics
+- Match rate monitoring
+- Risk priority visualizations
+- Investigation progress tracking
+- Search and filtering tools
+
+### 7. Excel Reporting
+Generate downloadable Excel workbooks containing:
+- All Transactions
+- Discrepancies
+- Summary
+
+Reports include transaction statuses, risk classifications, investigation progress, and analyst notes.
+
+## Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| Python | Core application logic |
+| Streamlit | Web interface and dashboard |
+| Pandas | Transaction processing and reconciliation |
+| Decimal | Exact financial amount parsing |
+| OpenPyXL | Excel report generation |
+| GitHub | Version control and source hosting |
+| Streamlit Community Cloud | Application deployment |
+
+## How to Use
+
+1. Open the live application.
+2. Upload a payment records CSV.
+3. Upload a bank records CSV.
+4. Click **Run Reconciliation**.
+5. Review transaction metrics on the Overview page.
+6. Open Transaction Review to investigate discrepancies.
+7. Update resolution statuses and investigation notes.
+8. Open Reports to download the Excel reconciliation workbook.
+
+### Required CSV Format
+
+Both files must contain these columns:
+
+| Transaction_ID | Amount |
+|---|---|
+| TX001 | 100.00 |
+| TX002 | 250.50 |
+| TX003 | 75.25 |
+
+Transaction identifiers must be unique within each uploaded file.
+
+## Testing
+
+The application has been tested with a synthetic dataset containing 1,000 distinct transaction identifiers.
+
+| Test Metric | Result |
+|---|---|
+| Total transactions | 1,000 |
+| Matched transactions | 800 |
+| Discrepancies | 200 |
+| Match rate | 80% |
+
+The test included amount mismatches, missing bank records, and missing payment records.
+
+The application successfully displayed the reconciliation dashboard and transaction review results for this dataset.
+
+## Current Limitations
+
+This is a functional prototype, not a production banking system.
+
+- Investigation data is not permanently stored.
+- Matching currently relies on transaction identifiers.
+- Risk classification uses predefined thresholds.
+- Discrepancy explanations are rule-based rather than generated by a machine-learning model.
+- The application does not connect directly to bank APIs or payment processors.
+- The prototype is intended for synthetic or fictional financial data only.
+
+## Future Improvements
+
+Potential future development includes:
+- Persistent database storage
+- User authentication and role-based access
+- Payment processor and banking API integrations
+- Automated reconciliation scheduling
+- Advanced transaction matching
+- Audit logs and investigation history
+- Machine-learning-assisted anomaly detection
+
+## Project Purpose
+
+This project demonstrates the practical application of Python, data processing, financial logic, and web application development to a real-world fintech operations problem.
+
+It combines transaction reconciliation, financial validation, operational risk classification, investigation management, and reporting into a single interactive platform.
+
+---
+
+**Project Status:** Functional prototype deployed on Streamlit Community Cloud.
