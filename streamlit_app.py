@@ -102,12 +102,18 @@ with st.sidebar:
     st.write("Engine: Rule-based reconciliation")
     st.write("Risk classification: Enabled")
     st.write("Discrepancy explanations: Enabled")
+    st.write("Resolution tracking: Enabled")
 
     st.divider()
 
     st.info(
         "Prototype environment. "
         "Upload synthetic or fictional data only."
+    )
+
+    st.warning(
+        "Investigation progress is saved only "
+        "during the current Streamlit session."
     )
 
 # --------------------------------------------------
@@ -119,7 +125,7 @@ st.markdown("""
     <h1>💳 Fintech Reconciliation</h1>
     <p class="dashboard-subtitle">
         Transaction monitoring, discrepancy detection,
-        and financial reconciliation intelligence.
+        investigation tracking, and financial reporting.
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -154,6 +160,81 @@ with col2:
     )
 
 # --------------------------------------------------
+# SESSION-BASED INVESTIGATION STORAGE
+# --------------------------------------------------
+
+if "investigations" not in st.session_state:
+    st.session_state["investigations"] = {}
+
+if "show_results" not in st.session_state:
+    st.session_state["show_results"] = False
+
+RESOLUTION_STATUSES = [
+    "Open",
+    "Under Investigation",
+    "Resolved"
+]
+
+def get_investigation(transaction_id):
+
+    return st.session_state["investigations"].get(
+        str(transaction_id),
+        {
+            "Resolution_Status": "Open",
+            "Investigation_Notes": ""
+        }
+    )
+
+
+def save_investigation(
+    transaction_id,
+    resolution_status,
+    investigation_notes
+):
+
+    st.session_state["investigations"][
+        str(transaction_id)
+    ] = {
+        "Resolution_Status": resolution_status,
+        "Investigation_Notes": investigation_notes
+    }
+
+
+def add_investigation_columns(data):
+
+    updated = data.copy()
+
+    updated["Resolution_Status"] = (
+        updated["Transaction_ID"].apply(
+            lambda transaction_id:
+                get_investigation(
+                    transaction_id
+                )["Resolution_Status"]
+                if get_investigation(
+                    transaction_id
+                )["Resolution_Status"] in RESOLUTION_STATUSES
+                else "Open"
+        )
+    )
+
+    updated["Investigation_Notes"] = (
+        updated["Transaction_ID"].apply(
+            lambda transaction_id:
+                get_investigation(
+                    transaction_id
+                )["Investigation_Notes"]
+        )
+    )
+
+    updated.loc[
+        updated["Status"] == "Matched",
+        "Resolution_Status"
+    ] = "Not Required"
+
+    return updated
+
+
+# --------------------------------------------------
 # RESET RESULTS WHEN FILES CHANGE
 # --------------------------------------------------
 
@@ -175,6 +256,10 @@ if payment_file is not None and bank_file is not None:
 
         st.session_state["file_signature"] = file_signature
         st.session_state["show_results"] = False
+
+        # Start a fresh investigation workspace
+        # when the uploaded dataset changes.
+        st.session_state["investigations"] = {}
 
     # --------------------------------------------------
     # DATA VALIDATION
@@ -293,18 +378,15 @@ if payment_file is not None and bank_file is not None:
             def status(row):
 
                 if row["_merge"] == "left_only":
-
                     return "Missing from Bank"
 
                 if row["_merge"] == "right_only":
-
                     return "Missing from Payments"
 
                 if (
                     row["Amount_Payment"]
                     != row["Amount_Bank"]
                 ):
-
                     return "Amount Mismatch"
 
                 return "Matched"
@@ -435,15 +517,12 @@ if payment_file is not None and bank_file is not None:
                     )
 
                     if amount_difference >= 100:
-
                         severity = "significant"
 
                     elif amount_difference >= 25:
-
                         severity = "moderate"
 
                     else:
-
                         severity = "minor"
 
                     return (
@@ -476,6 +555,18 @@ if payment_file is not None and bank_file is not None:
             exceptions = results[
                 results["Status"] != "Matched"
             ].copy()
+
+            # ------------------------------------------
+            # APPLY SAVED INVESTIGATION DATA
+            # ------------------------------------------
+
+            results = add_investigation_columns(
+                results
+            )
+
+            exceptions = add_investigation_columns(
+                exceptions
+            )
 
             # ------------------------------------------
             # CALCULATE METRICS
@@ -513,6 +604,41 @@ if payment_file is not None and bank_file is not None:
                 (
                     exceptions["Priority"] == "Low"
                 ).sum()
+            )
+
+            # ------------------------------------------
+            # RESOLUTION METRICS
+            # ------------------------------------------
+
+            open_count = int(
+                (
+                    exceptions["Resolution_Status"]
+                    == "Open"
+                ).sum()
+            )
+
+            investigating_count = int(
+                (
+                    exceptions["Resolution_Status"]
+                    == "Under Investigation"
+                ).sum()
+            )
+
+            resolved_count = int(
+                (
+                    exceptions["Resolution_Status"]
+                    == "Resolved"
+                ).sum()
+            )
+
+            unresolved_count = (
+                open_count + investigating_count
+            )
+
+            resolution_rate = (
+                resolved_count / discrepancy_count * 100
+                if discrepancy_count > 0
+                else 100.0
             )
 
             # ------------------------------------------
@@ -653,6 +779,69 @@ if payment_file is not None and bank_file is not None:
                 )
 
                 # --------------------------------------
+                # NEW: RESOLUTION OVERVIEW
+                # --------------------------------------
+
+                st.divider()
+
+                st.subheader(
+                    "Investigation Progress"
+                )
+
+                st.caption(
+                    "Track the progress of detected "
+                    "transaction discrepancies."
+                )
+
+                r1, r2, r3, r4 = st.columns(4)
+
+                r1.metric(
+                    "Open",
+                    open_count
+                )
+
+                r2.metric(
+                    "Under Investigation",
+                    investigating_count
+                )
+
+                r3.metric(
+                    "Resolved",
+                    resolved_count
+                )
+
+                r4.metric(
+                    "Resolution Rate",
+                    f"{resolution_rate:.1f}%"
+                )
+
+                st.progress(
+                    min(
+                        max(resolution_rate / 100, 0.0),
+                        1.0
+                    )
+                )
+
+                if unresolved_count > 0:
+
+                    st.warning(
+                        f"{unresolved_count} discrepancies "
+                        "remain unresolved."
+                    )
+
+                else:
+
+                    st.success(
+                        "No unresolved discrepancies remain."
+                    )
+
+                st.caption(
+                    "Resolution status reflects analyst "
+                    "updates, not automatic confirmation "
+                    "that underlying records have been corrected."
+                )
+
+                # --------------------------------------
                 # OVERVIEW SUMMARY
                 # --------------------------------------
 
@@ -671,19 +860,24 @@ if payment_file is not None and bank_file is not None:
 
                 else:
 
-                    st.warning(
-                        f"{discrepancy_count} transactions "
-                        "require further investigation."
+                    st.write(
+                        f"**{discrepancy_count}** discrepancies "
+                        "were detected."
                     )
 
                     st.write(
-                        f"**{high_priority_count}** high-priority "
-                        "transactions should be reviewed first."
+                        f"**{high_priority_count}** are "
+                        "classified as high priority."
+                    )
+
+                    st.write(
+                        f"**{resolved_count}** have been "
+                        "marked as resolved."
                     )
 
                     st.write(
                         "Open **Transaction Review** in the "
-                        "sidebar to investigate discrepancies."
+                        "sidebar to update investigation progress."
                     )
 
             # ==========================================
@@ -697,9 +891,32 @@ if payment_file is not None and bank_file is not None:
                 )
 
                 st.caption(
-                    "Search, filter, and investigate "
+                    "Search, filter, investigate, and resolve "
                     "transactions requiring attention."
                 )
+
+                # --------------------------------------
+                # RESOLUTION METRICS
+                # --------------------------------------
+
+                m1, m2, m3 = st.columns(3)
+
+                m1.metric(
+                    "Open",
+                    open_count
+                )
+
+                m2.metric(
+                    "Under Investigation",
+                    investigating_count
+                )
+
+                m3.metric(
+                    "Resolved",
+                    resolved_count
+                )
+
+                st.divider()
 
                 # --------------------------------------
                 # PRIORITY SORTING
@@ -737,10 +954,20 @@ if payment_file is not None and bank_file is not None:
 
                     with filter_col2:
 
-                        search_id = st.text_input(
-                            "Search Transaction ID",
-                            placeholder="e.g. TX003"
+                        selected_resolution = st.selectbox(
+                            "Resolution Status",
+                            [
+                                "All",
+                                "Open",
+                                "Under Investigation",
+                                "Resolved"
+                            ]
                         )
+
+                    search_id = st.text_input(
+                        "Search Transaction ID",
+                        placeholder="e.g. TX003"
+                    )
 
                     st.form_submit_button(
                         "Apply Filters",
@@ -778,6 +1005,16 @@ if payment_file is not None and bank_file is not None:
                         ]
                     )
 
+                if selected_resolution != "All":
+
+                    sorted_exceptions = (
+                        sorted_exceptions[
+                            sorted_exceptions[
+                                "Resolution_Status"
+                            ] == selected_resolution
+                        ]
+                    )
+
                 # --------------------------------------
                 # SORT BY PRIORITY
                 # --------------------------------------
@@ -794,7 +1031,8 @@ if payment_file is not None and bank_file is not None:
 
                 sorted_exceptions = (
                     sorted_exceptions.sort_values(
-                        "Priority_Order"
+                        "Priority_Order",
+                        kind="stable"
                     )
                 )
 
@@ -813,6 +1051,7 @@ if payment_file is not None and bank_file is not None:
                     "Amount_Bank",
                     "Status",
                     "Priority",
+                    "Resolution_Status",
                     "Recommended_Action"
                 ]
 
@@ -841,22 +1080,45 @@ if payment_file is not None and bank_file is not None:
                 )
 
                 st.caption(
-                    "Detailed rule-based explanations "
-                    "and recommended corrective actions."
+                    "Review discrepancy explanations, "
+                    "update resolution status, and save "
+                    "investigation notes."
                 )
 
                 for _, row in (
                     sorted_exceptions.iterrows()
                 ):
 
-                    transaction_id = row[
-                        "Transaction_ID"
-                    ]
+                    transaction_id = str(
+                        row["Transaction_ID"]
+                    )
+
+                    current_investigation = (
+                        get_investigation(
+                            transaction_id
+                        )
+                    )
+
+                    current_status = (
+                        current_investigation[
+                            "Resolution_Status"
+                        ]
+                    )
+
+                    if current_status not in RESOLUTION_STATUSES:
+                        current_status = "Open"
+
+                    current_notes = (
+                        current_investigation[
+                            "Investigation_Notes"
+                        ]
+                    )
 
                     with st.expander(
                         f"🔎 {transaction_id} | "
                         f"{row['Status']} | "
-                        f"{row['Priority']} Priority"
+                        f"{row['Priority']} Priority | "
+                        f"{current_status}"
                     ):
 
                         detail1, detail2, detail3 = (
@@ -894,6 +1156,61 @@ if payment_file is not None and bank_file is not None:
                             row["Recommended_Action"]
                         )
 
+                        # ------------------------------
+                        # NEW: RESOLUTION TRACKING FORM
+                        # ------------------------------
+
+                        st.markdown(
+                            "#### Investigation Tracking"
+                        )
+
+                        with st.form(
+                            key=f"investigation_form_{transaction_id}"
+                        ):
+
+                            new_status = st.selectbox(
+                                "Resolution Status",
+                                RESOLUTION_STATUSES,
+                                index=RESOLUTION_STATUSES.index(
+                                    current_status
+                                ),
+                                key=f"status_{transaction_id}"
+                            )
+
+                            new_notes = st.text_area(
+                                "Investigation Notes",
+                                value=current_notes,
+                                placeholder=(
+                                    "Describe what you investigated, "
+                                    "what you found, and the next steps."
+                                ),
+                                height=120,
+                                key=f"notes_{transaction_id}"
+                            )
+
+                            save_clicked = (
+                                st.form_submit_button(
+                                    "Save Investigation",
+                                    use_container_width=True
+                                )
+                            )
+
+                        if save_clicked:
+
+                            save_investigation(
+                                transaction_id,
+                                new_status,
+                                new_notes
+                            )
+
+                            st.rerun()
+
+                st.caption(
+                    "Investigation data is stored in "
+                    "Streamlit session state. "
+                    "It may be lost when the session ends."
+                )
+
                 st.caption(
                     "Explanations identify possible causes, "
                     "not confirmed diagnoses."
@@ -911,7 +1228,8 @@ if payment_file is not None and bank_file is not None:
 
                 st.caption(
                     "Download reconciliation results, "
-                    "discrepancies, and summary metrics."
+                    "discrepancies, investigation notes, "
+                    "and summary metrics."
                 )
 
                 # --------------------------------------
@@ -942,23 +1260,52 @@ if payment_file is not None and bank_file is not None:
 
                 st.divider()
 
+                # --------------------------------------
+                # RESOLUTION SUMMARY
+                # --------------------------------------
+
+                st.subheader(
+                    "Investigation Status Summary"
+                )
+
+                s1, s2, s3 = st.columns(3)
+
+                s1.metric(
+                    "Open",
+                    open_count
+                )
+
+                s2.metric(
+                    "Under Investigation",
+                    investigating_count
+                )
+
+                s3.metric(
+                    "Resolved",
+                    resolved_count
+                )
+
+                st.divider()
+
                 st.subheader(
                     "Report Contents"
                 )
 
                 st.write(
                     "**All Transactions:** "
-                    "Complete reconciliation results."
+                    "Complete reconciliation results, "
+                    "including investigation statuses."
                 )
 
                 st.write(
                     "**Discrepancies:** "
-                    "Transactions requiring investigation."
+                    "Transactions requiring investigation, "
+                    "with saved resolution statuses and notes."
                 )
 
                 st.write(
                     "**Summary:** "
-                    "Key reconciliation performance metrics."
+                    "Reconciliation and resolution metrics."
                 )
 
                 # --------------------------------------
@@ -1003,7 +1350,12 @@ if payment_file is not None and bank_file is not None:
                             "Match Rate (%)",
                             "High Priority",
                             "Medium Priority",
-                            "Low Priority"
+                            "Low Priority",
+                            "Open Investigations",
+                            "Under Investigation",
+                            "Resolved Investigations",
+                            "Unresolved Investigations",
+                            "Resolution Rate (%)"
                         ],
 
                         "Value": [
@@ -1013,7 +1365,12 @@ if payment_file is not None and bank_file is not None:
                             round(match_rate, 2),
                             high_priority_count,
                             medium_priority_count,
-                            low_priority_count
+                            low_priority_count,
+                            open_count,
+                            investigating_count,
+                            resolved_count,
+                            unresolved_count,
+                            round(resolution_rate, 2)
                         ]
 
                     })
@@ -1044,6 +1401,12 @@ if payment_file is not None and bank_file is not None:
                 st.success(
                     "Your reconciliation report is "
                     "ready to download."
+                )
+
+                st.info(
+                    "Tip: Download your report before "
+                    "ending your session to preserve "
+                    "your investigation progress."
                 )
 
     except Exception as e:
