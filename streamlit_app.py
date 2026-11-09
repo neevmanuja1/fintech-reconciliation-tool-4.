@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+import hashlib
 
 st.set_page_config(
     page_title="Fintech Reconciliation",
@@ -36,8 +37,8 @@ with col2:
 # Reset previous results when uploaded files change
 if payment_file and bank_file:
     file_signature = (
-        payment_file.getvalue(),
-        bank_file.getvalue()
+        hashlib.sha256(payment_file.getvalue()).hexdigest(),
+        hashlib.sha256(bank_file.getvalue()).hexdigest()
     )
 
     if st.session_state.get("file_signature") != file_signature:
@@ -178,6 +179,76 @@ if payment_file and bank_file:
                 results["Status"].map(action_map)
             )
 
+            # AI-style discrepancy explanation engine
+            # Rule-based explanations, no external AI API required
+            def explain_discrepancy(row):
+                transaction_status = row["Status"]
+
+                if transaction_status == "Matched":
+                    return (
+                        "Transaction reconciled successfully. "
+                        "The payment and bank records agree. "
+                        "No further investigation is required."
+                    )
+
+                if transaction_status == "Missing from Bank":
+                    return (
+                        "This transaction exists in the payment "
+                        "system but has no corresponding bank "
+                        "record. Possible explanations include "
+                        "delayed bank settlement, a failed "
+                        "transfer, or an omitted bank entry. "
+                        "Verify the settlement status and "
+                        "review the bank statement."
+                    )
+
+                if transaction_status == "Missing from Payments":
+                    return (
+                        "This transaction appears in the bank "
+                        "records but is absent from the payment "
+                        "system. Possible explanations include "
+                        "an unrecorded payment, a manual bank "
+                        "transfer, or a data synchronization "
+                        "issue. Investigate the transaction "
+                        "source and payment system logs."
+                    )
+
+                if transaction_status == "Amount Mismatch":
+                    payment_amount = row["Amount_Payment"]
+                    bank_amount = row["Amount_Bank"]
+
+                    amount_difference = abs(
+                        payment_amount - bank_amount
+                    )
+
+                    if amount_difference >= 100:
+                        severity = "significant"
+                    elif amount_difference >= 25:
+                        severity = "moderate"
+                    else:
+                        severity = "minor"
+
+                    return (
+                        f"The payment system records "
+                        f"{payment_amount:.2f}, while the "
+                        f"bank records {bank_amount:.2f}. "
+                        f"This creates a {severity} "
+                        f"discrepancy of "
+                        f"{amount_difference:.2f}. "
+                        "Possible explanations include "
+                        "processing fees, partial settlements, "
+                        "or incorrect transaction entries. "
+                        "Compare the original payment record "
+                        "with the bank settlement report."
+                    )
+
+                return "Further investigation is required."
+
+            results["AI_Explanation"] = results.apply(
+                explain_discrepancy,
+                axis=1
+            )
+
             # Identify transactions requiring review
             exceptions = results[
                 results["Status"] != "Matched"
@@ -288,6 +359,46 @@ if payment_file and bank_file:
                 st.info(
                     "No transactions match your filters."
                 )
+
+            # Detailed discrepancy explanations
+            st.subheader("Discrepancy Explanations")
+
+            st.caption(
+                "Automatically generated rule-based "
+                "explanations. Possible causes are "
+                "hypotheses, not confirmed findings."
+            )
+
+            if not sorted_exceptions.empty:
+
+                for _, row in sorted_exceptions.iterrows():
+
+                    transaction_id = row["Transaction_ID"]
+                    transaction_priority = row["Priority"]
+
+                    with st.expander(
+                        f"{transaction_id} | "
+                        f"{row['Status']} | "
+                        f"Priority: {transaction_priority}"
+                    ):
+
+                        st.write("**Transaction ID:**", transaction_id)
+
+                        st.write(
+                            "**Status:**",
+                            row["Status"]
+                        )
+
+                        st.write(
+                            "**Priority:**",
+                            transaction_priority
+                        )
+
+                        st.write("**Explanation:**")
+                        st.write(row["AI_Explanation"])
+
+                        st.write("**Recommended Action:**")
+                        st.write(row["Recommended_Action"])
 
             # Generate Excel report
             output = BytesIO()
