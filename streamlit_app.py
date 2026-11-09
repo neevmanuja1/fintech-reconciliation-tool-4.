@@ -174,6 +174,11 @@ if payment_file and bank_file:
             
             # Filter transactions by priority
            
+                search_id = st.text_input(
+                    "Search by Transaction ID",
+                    placeholder="e.g. TX003"
+                )
+
             with st.form("priority_filter_form"):
                 selected_priority = st.selectbox(
                     "Filter transactions by priority",
@@ -186,6 +191,18 @@ if payment_file and bank_file:
 
 
             sorted_exceptions = exceptions.copy()
+            
+            if search_id.strip():
+                sorted_exceptions = sorted_exceptions[
+                    sorted_exceptions["Transaction_ID"]
+                    .str.contains(
+                        search_id.strip(),
+                        case=False,
+                        regex=False,
+                        na=False
+                    )
+                ]
+
 
             if selected_priority != "All":
                 sorted_exceptions = sorted_exceptions[
